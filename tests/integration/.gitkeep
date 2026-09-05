@@ -1,0 +1,2 @@
+# Integration tests (API + Postgres) will live here.
+# Run with a test database: DATABASE_URL=postgresql://houseme:houseme@localhost:5432/houseme_test

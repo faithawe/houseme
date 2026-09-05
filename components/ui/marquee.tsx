@@ -1,0 +1,61 @@
+import { cn } from "@/lib/utils";
+import type { ComponentPropsWithoutRef } from "react";
+
+interface MarqueeProps extends ComponentPropsWithoutRef<"div"> {
+  className?: string;
+  reverse?: boolean;
+  pauseOnHover?: boolean;
+  children: React.ReactNode;
+  vertical?: boolean;
+  repeat?: number;
+  speed?: "slow" | "normal" | "fast";
+}
+
+export function Marquee({
+  className,
+  reverse = false,
+  pauseOnHover = false,
+  children,
+  vertical = false,
+  repeat = 4,
+  speed = "normal",
+  ...props
+}: MarqueeProps) {
+  const speedVariants = {
+    slow: "[--duration:80s]",
+    normal: "[--duration:45s]",
+    fast: "[--duration:20s]",
+  };
+
+  return (
+    <div
+      {...props}
+      className={cn(
+        "group flex overflow-hidden p-1 [--gap:1rem] [gap:var(--gap)]",
+        speedVariants[speed],
+        {
+          "flex-row": !vertical,
+          "flex-col": vertical,
+        },
+        className,
+      )}
+    >
+      {Array(repeat)
+        .fill(0)
+        .map((_, i) => (
+          <div
+            key={i}
+            className={cn("flex shrink-0 justify-around [gap:var(--gap)]", {
+              "animate-marquee flex-row motion-reduce:animate-none": !vertical,
+              "animate-marquee-vertical flex-col motion-reduce:animate-none":
+                vertical,
+              "group-hover:[animation-play-state:paused]": pauseOnHover,
+              "[animation-direction:reverse]": reverse,
+            })}
+          >
+            {children}
+          </div>
+        ))}
+    </div>
+  );
+}
