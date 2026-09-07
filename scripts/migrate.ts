@@ -1,8 +1,8 @@
 /**
- * Apply drizzle/0000_init.sql against DATABASE_URL.
+ * Apply drizzle/*.sql against DATABASE_URL in order.
  * Usage: npm run db:migrate
  */
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import postgres from "postgres";
 
@@ -16,7 +16,13 @@ function loadEnvLocal() {
     const eq = trimmed.indexOf("=");
     if (eq === -1) continue;
     const key = trimmed.slice(0, eq).trim();
-    const value = trimmed.slice(eq + 1).trim();
+    let value = trimmed.slice(eq + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
     if (!(key in process.env)) process.env[key] = value;
   }
 }
@@ -29,13 +35,53 @@ async function migrate() {
     throw new Error("DATABASE_URL is required. Copy .env.example to .env.local.");
   }
 
-  const sqlPath = resolve(process.cwd(), "drizzle/0000_init.sql");
-  const sql = readFileSync(sqlPath, "utf8");
-  const client = postgres(url, { max: 1 });
+  const drizzleDir = resolve(process.cwd(), "drizzle");
+  const files = readdirSync(drizzleDir)
+    .filter((name) => name.endsWith(".sql"))
+    .sort();
+
+  const client = postgres(url, {
+    max: 1,
+    ssl: /neon\.tech|supabase\.co|pooler\./i.test(url) ? "require" : undefined,
+  });
 
   try {
-    await client.unsafe(sql);
-    console.log("Applied drizzle/0000_init.sql");
+    await client`
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        filename text PRIMARY KEY,
+        applied_at timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+
+    // If schema already exists from a prior bare init, mark 0000 applied.
+    const [usersTable] = await client<{ exists: boolean }[]>`
+      SELECT EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'users'
+      ) AS exists
+    `;
+    if (usersTable?.exists) {
+      await client`
+        INSERT INTO schema_migrations (filename)
+        VALUES ('0000_init.sql')
+        ON CONFLICT DO NOTHING
+      `;
+    }
+
+    for (const file of files) {
+      const [existing] = await client<{ filename: string }[]>`
+        SELECT filename FROM schema_migrations WHERE filename = ${file} LIMIT 1
+      `;
+      if (existing) {
+        console.log(`Skip ${file} (already applied)`);
+        continue;
+      }
+
+      const sql = readFileSync(resolve(drizzleDir, file), "utf8");
+      await client.unsafe(sql);
+      await client`INSERT INTO schema_migrations (filename) VALUES (${file})`;
+      console.log(`Applied ${file}`);
+    }
   } finally {
     await client.end();
   }

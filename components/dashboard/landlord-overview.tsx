@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
+import { useEffect, useState } from "react";
 import { ArrowUpRight, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -201,7 +204,64 @@ function ListingRow({ listing }: { listing: LandlordListingRow }) {
 }
 
 export function LandlordOverview({ firstName }: { firstName: string }) {
-  const listings = LANDLORD_DEMO_LISTINGS;
+  const [listings, setListings] = useState<LandlordListingRow[]>(LANDLORD_DEMO_LISTINGS);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const response = await fetch("/api/listings/mine");
+        if (!response.ok) return;
+        const json = (await response.json()) as {
+          data: Array<{
+            id: string;
+            title: string;
+            propertyType: LandlordListingRow["propertyType"];
+            price: number;
+            pricePeriod: LandlordListingRow["pricePeriod"];
+            city: string;
+            area: string | null;
+            photos: { url: string }[];
+            status: LandlordListingRow["status"];
+            rejectionReason: string | null;
+            viewCount: number;
+            contactClicks: number;
+            updatedAt: string;
+          }>;
+        };
+        if (cancelled) return;
+        setListings(
+          json.data.map((listing) => ({
+            id: listing.id,
+            title: listing.title,
+            propertyType: listing.propertyType,
+            price: listing.price,
+            pricePeriod: listing.pricePeriod,
+            city: listing.city,
+            area: listing.area || "—",
+            photo: listing.photos[0]?.url || "/images/hero/living-room.jpg",
+            status:
+              listing.status === "live" ||
+              listing.status === "pending_review" ||
+              listing.status === "rejected"
+                ? listing.status
+                : "draft",
+            rejectionReason: listing.rejectionReason ?? undefined,
+            viewCount: listing.viewCount,
+            contactClicks: listing.contactClicks,
+            updatedAt: listing.updatedAt.slice(0, 10),
+          })),
+        );
+      } catch {
+        // keep demo
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const summary = summarizeLandlordBoard(listings);
 
   return (
@@ -226,7 +286,7 @@ export function LandlordOverview({ firstName }: { firstName: string }) {
       <DashPanel className="dash-enter-delay-3">
         <DashPanelHead
           title="Your listings"
-          meta="Demo portfolio until your API listings sync"
+          meta={`${listings.length} listing${listings.length === 1 ? "" : "s"}`}
           action={
             <Button asChild variant="ghost" size="sm">
               <Link href="/dashboard/landlord/listings">Full list</Link>

@@ -15,7 +15,6 @@ import { ListingPhotoUploader } from "@/components/dashboard/listing-photo-uploa
 import { FEATURED_CITIES, PROPERTY_TYPES } from "@/lib/constants";
 import { formatPropertyType } from "@/lib/utils";
 import {
-  LANDLORD_DRAFT_KEY,
   readLandlordDrafts,
   writeLandlordDrafts,
 } from "@/lib/landlord-drafts";
@@ -65,39 +64,74 @@ export function NewListingForm() {
     const form = event.currentTarget;
     const data = Object.fromEntries(new FormData(form).entries());
 
+    const payload = {
+      title: String(data.title ?? ""),
+      description: String(data.description ?? ""),
+      propertyType: String(data.propertyType ?? "self_con"),
+      price: Number(data.price),
+      pricePeriod: String(data.pricePeriod ?? "yearly"),
+      city: String(data.city ?? ""),
+      area: String(data.area ?? "") || undefined,
+      address: String(data.address ?? ""),
+      bedrooms: Number(data.bedrooms ?? 1),
+      bathrooms: Number(data.bathrooms ?? 1),
+      furnished: data.furnished === "on" || data.furnished === "true",
+      amenities: [],
+      photos,
+    };
+
     try {
-      const existing = readLandlordDrafts();
-      const draft = {
-        id: `draft-${Date.now()}`,
-        status: "pending_review" as const,
-        createdAt: new Date().toISOString(),
-        title: String(data.title ?? ""),
-        description: String(data.description ?? ""),
-        propertyType: String(data.propertyType ?? "self_con"),
-        price: String(data.price ?? ""),
-        pricePeriod: String(data.pricePeriod ?? "yearly"),
-        city: String(data.city ?? ""),
-        area: String(data.area ?? ""),
-        address: String(data.address ?? ""),
-        bedrooms: String(data.bedrooms ?? "1"),
-        bathrooms: String(data.bathrooms ?? "1"),
-        photos,
+      const response = await fetch("/api/listings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = (await response.json()) as {
+        data?: { id: string };
+        error?: { message?: string };
       };
-      writeLandlordDrafts([draft, ...existing]);
-      window.localStorage.setItem(
-        LANDLORD_DRAFT_KEY,
-        JSON.stringify([draft, ...existing].slice(0, 20)),
-      );
-      setMessage(
-        "Listing saved with photos and marked for review. You’ll see it on My listings.",
-      );
+
+      if (!response.ok) {
+        setMessage(json.error?.message ?? "Could not submit listing. Check the form and try again.");
+        return;
+      }
+
+      setMessage("Listing submitted for review. You’ll see it on My listings.");
       form.reset();
       setPhotos([]);
       setTimeout(() => router.push("/dashboard/landlord/listings"), 900);
     } catch {
-      setMessage(
-        "Could not save this draft. If you added many photos, try fewer or smaller images.",
-      );
+      // Offline / local demo fallback
+      try {
+        const existing = readLandlordDrafts();
+        const draft = {
+          id: `draft-${Date.now()}`,
+          status: "pending_review" as const,
+          createdAt: new Date().toISOString(),
+          title: payload.title,
+          description: payload.description,
+          propertyType: payload.propertyType,
+          price: String(payload.price),
+          pricePeriod: payload.pricePeriod,
+          city: payload.city,
+          area: payload.area ?? "",
+          address: payload.address,
+          bedrooms: String(payload.bedrooms),
+          bathrooms: String(payload.bathrooms),
+          photos,
+        };
+        writeLandlordDrafts([draft, ...existing]);
+        setMessage(
+          "Saved locally (API unavailable). Connect the database to sync listings across devices.",
+        );
+        form.reset();
+        setPhotos([]);
+        setTimeout(() => router.push("/dashboard/landlord/listings"), 900);
+      } catch {
+        setMessage(
+          "Could not save this listing. If you added many photos, try fewer or smaller images.",
+        );
+      }
     } finally {
       setLoading(false);
     }

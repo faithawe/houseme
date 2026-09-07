@@ -7,18 +7,14 @@ import { ContactCta } from "@/components/listings/contact-cta";
 import { ListingGallery } from "@/components/listings/listing-gallery";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DEMO_LISTINGS, getDemoListing } from "@/lib/demo-listings";
+import { getPublicListing } from "@/lib/listings/public";
 import { formatNaira, formatPricePeriod, formatPropertyType } from "@/lib/utils";
 
 type Props = { params: Promise<{ id: string }> };
 
-export async function generateStaticParams() {
-  return DEMO_LISTINGS.map((listing) => ({ id: listing.id }));
-}
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const listing = getDemoListing(id);
+  const listing = await getPublicListing(id);
   if (!listing) return { title: "Listing" };
   return {
     title: listing.title,
@@ -28,7 +24,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ListingDetailPage({ params }: Props) {
   const { id } = await params;
-  const listing = getDemoListing(id);
+  const listing = await getPublicListing(id);
   if (!listing) notFound();
 
   const mapQuery = encodeURIComponent(`${listing.address}`);
@@ -92,7 +88,11 @@ export default async function ListingDetailPage({ params }: Props) {
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-          <ContactCta phone={listing.phone} landlordName={listing.landlordName} />
+          <ContactCta
+            listingId={listing.id}
+            phone={listing.phone}
+            landlordName={listing.landlordName}
+          />
           <div className="overflow-hidden rounded-xl border border-line bg-white">
             <iframe
               title={`Map of ${listing.area}, ${listing.city}`}

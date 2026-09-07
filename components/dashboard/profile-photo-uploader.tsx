@@ -9,41 +9,11 @@ import {
   writeProfilePhoto,
   type ProfileRole,
 } from "@/lib/profile-photo-store";
+import { uploadImageFile } from "@/lib/cloudinary-client";
 import { cn } from "@/lib/utils";
 
 const ACCEPT = "image/jpeg,image/png,image/webp";
 const MAX_BYTES = 4 * 1024 * 1024;
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error("Could not read file"));
-    reader.readAsDataURL(file);
-  });
-}
-
-async function compressAvatar(file: File, maxEdge = 512, quality = 0.82) {
-  const source = await readFileAsDataUrl(file);
-  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const el = new window.Image();
-    el.onload = () => resolve(el);
-    el.onerror = () => reject(new Error("Invalid image"));
-    el.src = source;
-  });
-
-  const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
-  const width = Math.max(1, Math.round(img.width * scale));
-  const height = Math.max(1, Math.round(img.height * scale));
-
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return source;
-  ctx.drawImage(img, 0, 0, width, height);
-  return canvas.toDataURL("image/jpeg", quality);
-}
 
 function initialsFromName(name?: string) {
   if (!name?.trim()) return null;
@@ -56,6 +26,10 @@ type ProfilePhotoUploaderProps = {
   userKey: string;
   displayName?: string;
   className?: string;
+  value?: string | null;
+  onChange?: (value: string | null) => void;
+  /** When true, photo is kept in parent state for API save (not localStorage-only). */
+  syncRemote?: boolean;
 };
 
 export function ProfilePhotoUploader({
@@ -63,17 +37,23 @@ export function ProfilePhotoUploader({
   userKey,
   displayName,
   className,
+  value,
+  onChange,
+  syncRemote = false,
 }: ProfilePhotoUploaderProps) {
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [photo, setPhoto] = useState<string | null>(null);
+  const [localPhoto, setLocalPhoto] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const initials = initialsFromName(displayName);
+  const controlled = typeof onChange === "function";
+  const photo = controlled ? (value ?? null) : localPhoto;
 
   useEffect(() => {
-    setPhoto(readProfilePhoto(role, userKey));
-  }, [role, userKey]);
+    if (controlled) return;
+    setLocalPhoto(readProfilePhoto(role, userKey));
+  }, [role, userKey, controlled]);
 
   async function onFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -91,9 +71,15 @@ export function ProfilePhotoUploader({
 
     setBusy(true);
     try {
-      const dataUrl = await compressAvatar(file);
-      writeProfilePhoto(role, userKey, dataUrl);
-      setPhoto(dataUrl);
+      const dataUrl = await uploadImageFile(file, {
+        preferDataUrl: !syncRemote,
+      });
+      if (controlled) {
+        onChange?.(dataUrl);
+      } else {
+        writeProfilePhoto(role, userKey, dataUrl);
+        setLocalPhoto(dataUrl);
+      }
     } catch {
       setError("Could not process that photo. Try another file.");
     } finally {
@@ -103,8 +89,12 @@ export function ProfilePhotoUploader({
   }
 
   function removePhoto() {
-    writeProfilePhoto(role, userKey, null);
-    setPhoto(null);
+    if (controlled) {
+      onChange?.(null);
+    } else {
+      writeProfilePhoto(role, userKey, null);
+      setLocalPhoto(null);
+    }
     setError(null);
   }
 
@@ -135,7 +125,10 @@ export function ProfilePhotoUploader({
         <div>
           <p className="text-sm font-semibold text-ink">Profile photo</p>
           <p className="text-xs text-navy-400">
-            JPG, PNG or WebP · under 4MB · saved on this device for now
+            JPG, PNG or WebP · under 4MB
+            {syncRemote
+              ? " · saved with your profile"
+              : " · saved on this device for now"}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

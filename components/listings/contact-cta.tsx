@@ -9,14 +9,26 @@ function toWhatsApp(phone: string) {
 }
 
 export function ContactCta({
+  listingId,
   phone,
   landlordName,
 }: {
+  listingId?: string;
   phone: string;
   landlordName: string;
 }) {
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  async function reveal() {
+    setRevealed(true);
+    if (!listingId) return;
+    try {
+      await fetch(`/api/listings/${listingId}/contact`, { method: "POST" });
+    } catch {
+      // analytics best-effort
+    }
+  }
 
   return (
     <div className="rounded-xl border border-line bg-white p-5 shadow-slip">
@@ -29,7 +41,7 @@ export function ContactCta({
       </p>
 
       {!revealed ? (
-        <Button className="mt-4 w-full" variant="stamp" onClick={() => setRevealed(true)}>
+        <Button className="mt-4 w-full" variant="stamp" onClick={reveal}>
           <Phone className="h-4 w-4" />
           Contact landlord
         </Button>

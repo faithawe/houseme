@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { SearchBar } from "@/components/layout/search-bar";
 import { ListingGrid } from "@/components/listings/listing-grid";
 import { SearchFilters } from "@/components/search/listing-filters";
-import { searchDemoListings } from "@/lib/demo-listings";
+import { searchPublicListings } from "@/lib/listings/public";
 
 export const metadata: Metadata = { title: "Search listings" };
 
@@ -21,7 +21,7 @@ export default async function SearchPage({
   const maxPrice = typeof params.maxPrice === "string" ? params.maxPrice : "";
   const sort = typeof params.sort === "string" ? params.sort : "newest";
 
-  const listings = searchDemoListings({
+  const listings = await searchPublicListings({
     q,
     city,
     propertyType,
@@ -35,8 +35,7 @@ export default async function SearchPage({
     <div className="mx-auto max-w-6xl px-4 py-10">
       <h1 className="font-display text-3xl font-semibold text-navy">Search</h1>
       <p className="mt-1 text-sm text-navy/60">
-        {listings.length} verified sample listing{listings.length === 1 ? "" : "s"}. Filters
-        update instantly.
+        {listings.length} verified listing{listings.length === 1 ? "" : "s"}.
       </p>
       <div className="mt-6 rounded-xl border border-line bg-white p-4">
         <SearchBar defaultQuery={q} defaultCity={city} />

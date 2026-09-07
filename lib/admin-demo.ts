@@ -14,10 +14,10 @@ export type AdminReviewListing = {
   city: string;
   area: string;
   address: string;
-  photo: string;
+  photo: string | null;
   photos: string[];
   status: AdminListingStatus;
-  rejectionReason?: string;
+  rejectionReason?: string | null;
   landlordName: string;
   landlordEmail: string;
   landlordPhone: string;

@@ -85,11 +85,21 @@ function QueuePreviewRow({ listing }: { listing: AdminReviewListing }) {
     <li className="flex flex-col gap-3 border-b border-line px-4 py-3.5 last:border-b-0 sm:flex-row sm:items-center sm:justify-between sm:px-5">
       <div className="flex min-w-0 gap-3">
         <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-line">
-          {listing.photo.startsWith("data:") ? (
+          {(listing.photo ?? "").startsWith("data:") ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={listing.photo} alt="" className="h-full w-full object-cover" />
+            <img
+              src={listing.photo ?? "/images/hero/living-room.jpg"}
+              alt=""
+              className="h-full w-full object-cover"
+            />
           ) : (
-            <Image src={listing.photo} alt="" fill className="object-cover" sizes="56px" />
+            <Image
+              src={listing.photo ?? "/images/hero/living-room.jpg"}
+              alt=""
+              fill
+              className="object-cover"
+              sizes="56px"
+            />
           )}
         </div>
         <div className="min-w-0">
@@ -114,13 +124,32 @@ export function AdminOverview({ firstName }: { firstName: string }) {
   const userStats = summarizeAdminUsers(ADMIN_DEMO_USERS);
 
   useEffect(() => {
-    const sync = () => setListings(readAdminReviewListings());
-    sync();
-    window.addEventListener(ADMIN_REVIEW_EVENT, sync);
-    window.addEventListener("storage", sync);
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const response = await fetch("/api/admin/listings");
+        if (response.ok) {
+          const json = (await response.json()) as { data: AdminReviewListing[] };
+          if (!cancelled) {
+            setListings(json.data);
+            return;
+          }
+        }
+      } catch {
+        // fall through
+      }
+      if (!cancelled) setListings(readAdminReviewListings());
+    }
+
+    const syncLocal = () => setListings(readAdminReviewListings());
+    void load();
+    window.addEventListener(ADMIN_REVIEW_EVENT, syncLocal);
+    window.addEventListener("storage", syncLocal);
     return () => {
-      window.removeEventListener(ADMIN_REVIEW_EVENT, sync);
-      window.removeEventListener("storage", sync);
+      cancelled = true;
+      window.removeEventListener(ADMIN_REVIEW_EVENT, syncLocal);
+      window.removeEventListener("storage", syncLocal);
     };
   }, []);
 

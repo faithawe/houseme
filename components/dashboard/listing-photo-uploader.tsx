@@ -5,42 +5,11 @@ import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import { ImagePlus, Trash2, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { uploadImageFile } from "@/lib/cloudinary-client";
 
 export const MAX_LISTING_PHOTOS = 6;
 export const MAX_PHOTO_BYTES = 4 * 1024 * 1024; // 4MB before compress
 const ACCEPT = "image/jpeg,image/png,image/webp,image/heic,image/heif";
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error("Could not read file"));
-    reader.readAsDataURL(file);
-  });
-}
-
-/** Compress to JPEG data URL so drafts fit in localStorage. */
-async function compressImage(file: File, maxEdge = 1280, quality = 0.72): Promise<string> {
-  const source = await readFileAsDataUrl(file);
-  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const el = new window.Image();
-    el.onload = () => resolve(el);
-    el.onerror = () => reject(new Error("Invalid image"));
-    el.src = source;
-  });
-
-  const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
-  const width = Math.max(1, Math.round(img.width * scale));
-  const height = Math.max(1, Math.round(img.height * scale));
-
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return source;
-  ctx.drawImage(img, 0, 0, width, height);
-  return canvas.toDataURL("image/jpeg", quality);
-}
 
 type ListingPhotoUploaderProps = {
   photos: string[];
@@ -86,8 +55,8 @@ export function ListingPhotoUploader({
 
     setBusy(true);
     try {
-      const compressed = await Promise.all(picked.map((file) => compressImage(file)));
-      onChange([...photos, ...compressed]);
+      const uploaded = await Promise.all(picked.map((file) => uploadImageFile(file)));
+      onChange([...photos, ...uploaded]);
       if (files.length > slots) {
         setError(`Only ${slots} more photo${slots === 1 ? "" : "s"} could be added.`);
       }

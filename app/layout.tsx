@@ -3,6 +3,7 @@ import { Figtree, Syne } from "next/font/google";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { Providers } from "@/components/shared/providers";
+import { AnalyticsBeacon } from "@/components/shared/analytics-beacon";
 import "./globals.css";
 
 const syne = Syne({
@@ -43,6 +44,7 @@ export default function RootLayout({
             <main className="flex-1">{children}</main>
             <Footer />
           </div>
+          <AnalyticsBeacon />
         </Providers>
       </body>
     </html>

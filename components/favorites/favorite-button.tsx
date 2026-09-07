@@ -28,6 +28,21 @@ export function useFavoriteIds() {
   useEffect(() => {
     const sync = () => setIds(readFavorites());
     sync();
+
+    async function loadRemote() {
+      try {
+        const response = await fetch("/api/favorites");
+        if (!response.ok) return;
+        const json = (await response.json()) as { data: { id: string }[] };
+        const remoteIds = json.data.map((item) => item.id);
+        writeFavorites(remoteIds);
+        setIds(remoteIds);
+      } catch {
+        // keep local
+      }
+    }
+
+    void loadRemote();
     window.addEventListener(EVENT, sync);
     window.addEventListener("storage", sync);
     return () => {
@@ -68,10 +83,22 @@ export function FavoriteButton({
         event.preventDefault();
         event.stopPropagation();
         const current = readFavorites();
-        const next = current.includes(listingId)
+        const isSaved = current.includes(listingId);
+        const next = isSaved
           ? current.filter((id) => id !== listingId)
           : [...current, listingId];
         writeFavorites(next);
+        setSaved(!isSaved);
+
+        void (async () => {
+          try {
+            await fetch(`/api/favorites/${listingId}`, {
+              method: isSaved ? "DELETE" : "POST",
+            });
+          } catch {
+            // local-only fallback already applied
+          }
+        })();
       }}
       className={cn(
         "flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-navy shadow-sm backdrop-blur transition hover:scale-105",

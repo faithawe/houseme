@@ -54,6 +54,11 @@ export function RegisterForm() {
         return;
       }
 
+      if (body?.data?.requiresVerification) {
+        router.push("/auth/login?verify=1");
+        return;
+      }
+
       const result = await signIn("credentials", {
         email: payload.email,
         password: payload.password,

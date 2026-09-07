@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import postgres from "postgres";
 import { hashPassword } from "../lib/auth/password";
 import { fileAuthStore } from "../lib/auth/file-store";
+import { DEMO_LISTINGS } from "../lib/demo-listings";
 
 function loadEnvLocal() {
   const path = resolve(process.cwd(), ".env.local");
@@ -14,7 +15,13 @@ function loadEnvLocal() {
     const eq = trimmed.indexOf("=");
     if (eq === -1) continue;
     const key = trimmed.slice(0, eq).trim();
-    const value = trimmed.slice(eq + 1).trim();
+    let value = trimmed.slice(eq + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
     if (!(key in process.env)) process.env[key] = value;
   }
 }
@@ -60,9 +67,14 @@ async function seedPostgres() {
     throw new Error("DATABASE_URL is required when AUTH_STORE is not file.");
   }
 
-  const client = postgres(url, { max: 1 });
+  const client = postgres(url, {
+    max: 1,
+    ssl: /neon\.tech|supabase\.co|pooler\./i.test(url) ? "require" : undefined,
+  });
 
   try {
+    const userIds: Record<string, string> = {};
+
     for (const entry of SEED_USERS) {
       const [existing] = await client<
         { id: string }[]
@@ -70,6 +82,7 @@ async function seedPostgres() {
 
       if (existing) {
         console.log(`Skip ${entry.email} (already exists)`);
+        userIds[entry.role] = existing.id;
         continue;
       }
 
@@ -88,14 +101,67 @@ async function seedPostgres() {
         RETURNING id
       `;
 
+      userIds[entry.role] = inserted.id;
+
       if (entry.role === "landlord") {
         await client`
           INSERT INTO landlord_profiles (user_id)
           VALUES (${inserted.id})
+          ON CONFLICT (user_id) DO NOTHING
         `;
       }
 
       console.log(`Created ${entry.role}: ${entry.email}`);
+    }
+
+    const landlordId = userIds.landlord;
+    if (landlordId) {
+      const [{ count }] = await client<{ count: string }[]>`
+        SELECT count(*)::text AS count FROM listings WHERE landlord_id = ${landlordId}
+      `;
+
+      if (Number(count) === 0) {
+        for (const [index, listing] of DEMO_LISTINGS.entries()) {
+          const status = index === 1 ? "pending_review" : index === 2 ? "rejected" : "live";
+          const [row] = await client<{ id: string }[]>`
+            INSERT INTO listings (
+              landlord_id, title, description, property_type, price, price_period,
+              city, area, address, bedrooms, bathrooms, furnished, amenities,
+              status, rejection_reason, view_count, contact_clicks, published_at
+            ) VALUES (
+              ${landlordId},
+              ${listing.title},
+              ${listing.description},
+              ${listing.propertyType},
+              ${listing.price},
+              ${listing.pricePeriod},
+              ${listing.city},
+              ${listing.area},
+              ${listing.address},
+              ${listing.bedrooms},
+              ${listing.bathrooms},
+              ${listing.furnished},
+              ${listing.amenities},
+              ${status},
+              ${status === "rejected" ? "Add clearer photos of the kitchen and bathroom." : null},
+              ${listing.viewCount},
+              ${listing.contactClicks},
+              ${status === "live" ? listing.publishedAt : null}
+            )
+            RETURNING id
+          `;
+
+          for (const [sortOrder, url] of listing.photos.entries()) {
+            await client`
+              INSERT INTO listing_photos (listing_id, url, thumbnail_url, sort_order)
+              VALUES (${row.id}, ${url}, ${url}, ${sortOrder})
+            `;
+          }
+        }
+        console.log(`Seeded ${DEMO_LISTINGS.length} sample listings`);
+      } else {
+        console.log("Skip listings (already present)");
+      }
     }
 
     console.log("\nSeed complete. Log in with:");

@@ -25,10 +25,14 @@ export const authConfig = {
   },
   providers: [],
   callbacks: {
-    jwt({ token, user }) {
+    jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
+      }
+      if (trigger === "update" && session) {
+        if (typeof session.name === "string") token.name = session.name;
+        if (typeof session.email === "string") token.email = session.email;
       }
       return token;
     },
@@ -36,6 +40,12 @@ export const authConfig = {
       if (session.user) {
         if (typeof token.id === "string") {
           session.user.id = token.id;
+        }
+        if (typeof token.name === "string") {
+          session.user.name = token.name;
+        }
+        if (typeof token.email === "string") {
+          session.user.email = token.email;
         }
         if (
           token.role === "tenant" ||

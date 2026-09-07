@@ -1,14 +1,14 @@
 import { jsonError, jsonOk } from "@/lib/api-response";
 import { requireUser } from "@/lib/auth/guards";
-import { adminService } from "@/lib/services/admin.service";
+import { adminUsersService } from "@/lib/services/admin-users.service";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function PATCH(_request: Request, { params }: Params) {
+export async function DELETE(_request: Request, { params }: Params) {
   try {
-    const admin = await requireUser(["admin"]);
+    await requireUser(["admin"]);
     const { id } = await params;
-    const result = await adminService.flag(id, admin.id);
+    const result = await adminUsersService.softDelete(id);
     return jsonOk(result);
   } catch (error) {
     return jsonError(error);

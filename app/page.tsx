@@ -7,10 +7,10 @@ import { ServicesSection } from "@/components/home/services-section";
 import { TestimonialsSection } from "@/components/home/testimonials-section";
 import { ListingGrid } from "@/components/listings/listing-grid";
 import { Button } from "@/components/ui/button";
-import { getFeaturedListings } from "@/lib/demo-listings";
+import { getPublicFeatured } from "@/lib/listings/public";
 
-export default function HomePage() {
-  const featured = getFeaturedListings(3);
+export default async function HomePage() {
+  const featured = await getPublicFeatured(3);
 
   return (
     <div>

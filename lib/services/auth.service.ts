@@ -1,7 +1,7 @@
 import { and, eq, gt } from "drizzle-orm";
 import type { UserRole } from "@/lib/constants";
 import { getDb } from "@/lib/db";
-import { landlordProfiles, passwordResetTokens, users } from "@/lib/db/schema";
+import { landlordProfiles, emailVerificationTokens, passwordResetTokens, users } from "@/lib/db/schema";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { appBaseUrl, createRawToken, hashToken } from "@/lib/auth/tokens";
 import {
@@ -47,7 +47,12 @@ function resetExpiry(): Date {
 }
 
 export const authService = {
-  async register(input: unknown): Promise<{ userId: string; email: string }> {
+  async register(input: unknown): Promise<{
+    userId: string;
+    email: string;
+    requiresVerification?: boolean;
+    verificationUrl?: string;
+  }> {
     const parsed = registerSchema.safeParse(input);
     if (!parsed.success) {
       throw new ValidationError("Invalid registration details", {
@@ -69,7 +74,7 @@ export const authService = {
           phone: data.phone.trim(),
           role: data.role,
         });
-        return { userId: user.id, email: user.email };
+        return { userId: user.id, email: user.email, requiresVerification: false };
       } catch {
         throw new ConflictError("An account with this email already exists");
       }
@@ -94,7 +99,7 @@ export const authService = {
         name: data.name.trim(),
         phone: data.phone.trim(),
         role: data.role,
-        emailVerified: true,
+        emailVerified: !emailService.isConfigured(),
       })
       .returning({ id: users.id, email: users.email });
 
@@ -102,7 +107,26 @@ export const authService = {
       await db.insert(landlordProfiles).values({ userId: user.id });
     }
 
-    return { userId: user.id, email: user.email };
+    let verificationUrl: string | undefined;
+    if (emailService.isConfigured()) {
+      const rawToken = createRawToken();
+      const tokenHash = hashToken(rawToken);
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      await db.insert(emailVerificationTokens).values({
+        userId: user.id,
+        tokenHash,
+        expiresAt,
+      });
+      verificationUrl = `${appBaseUrl()}/auth/verify?token=${rawToken}`;
+      await emailService.sendVerification(user.email, verificationUrl);
+    }
+
+    return {
+      userId: user.id,
+      email: user.email,
+      requiresVerification: emailService.isConfigured(),
+      verificationUrl,
+    };
   },
 
   async authenticateCredentials(
@@ -348,7 +372,48 @@ export const authService = {
     return { ok: true };
   },
 
-  async verifyEmail(_token: string): Promise<never> {
-    throw new Error("authService.verifyEmail is not implemented");
+  async verifyEmail(token: string): Promise<{ ok: true; email: string }> {
+    if (!token?.trim()) {
+      throw new ValidationError("Missing verification token");
+    }
+
+    const tokenHash = hashToken(token.trim());
+
+    if (isDemoAuthMode()) {
+      return { ok: true, email: "verified@demo.local" };
+    }
+
+    const db = getDb();
+    const [row] = await db
+      .select()
+      .from(emailVerificationTokens)
+      .where(
+        and(
+          eq(emailVerificationTokens.tokenHash, tokenHash),
+          gt(emailVerificationTokens.expiresAt, new Date()),
+        ),
+      )
+      .limit(1);
+
+    if (!row) {
+      throw new ValidationError("This verification link is invalid or has expired.");
+    }
+
+    await db
+      .update(users)
+      .set({ emailVerified: true, updatedAt: new Date() })
+      .where(eq(users.id, row.userId));
+
+    await db
+      .delete(emailVerificationTokens)
+      .where(eq(emailVerificationTokens.userId, row.userId));
+
+    const [user] = await db
+      .select({ email: users.email })
+      .from(users)
+      .where(eq(users.id, row.userId))
+      .limit(1);
+
+    return { ok: true, email: user?.email ?? "" };
   },
 };

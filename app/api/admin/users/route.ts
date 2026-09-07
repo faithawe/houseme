@@ -1,12 +1,12 @@
 import { jsonError, jsonOk } from "@/lib/api-response";
 import { requireUser } from "@/lib/auth/guards";
-import { adminService } from "@/lib/services/admin.service";
+import { adminUsersService } from "@/lib/services/admin-users.service";
 
 export async function GET() {
   try {
     await requireUser(["admin"]);
-    const stats = await adminService.stats();
-    return jsonOk(stats);
+    const users = await adminUsersService.list();
+    return jsonOk(users);
   } catch (error) {
     return jsonError(error);
   }

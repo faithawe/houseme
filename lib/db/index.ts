@@ -12,10 +12,16 @@ function createDb(): Database {
     );
   }
 
+  const isServerless =
+    Boolean(process.env.VERCEL) ||
+    /neon\.tech|supabase\.co|pooler\.|pgbouncer/i.test(url);
+
   const client = postgres(url, {
-    max: 5,
+    max: isServerless ? 1 : 5,
     idle_timeout: 20,
     connect_timeout: 10,
+    prepare: !isServerless,
+    ssl: isServerless ? "require" : undefined,
   });
 
   return drizzle(client, { schema });
@@ -29,4 +35,8 @@ export function getDb(): Database {
     cached = createDb();
   }
   return cached;
+}
+
+export function hasDatabaseUrl(): boolean {
+  return Boolean(process.env.DATABASE_URL?.trim());
 }

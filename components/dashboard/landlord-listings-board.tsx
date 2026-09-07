@@ -61,11 +61,79 @@ function draftsAsRows(): LandlordListingRow[] {
 }
 
 export function LandlordListingsBoard() {
-  const [listings, setListings] = useState<LandlordListingRow[]>(LANDLORD_DEMO_LISTINGS);
+  const [listings, setListings] = useState<LandlordListingRow[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setListings([...draftsAsRows(), ...LANDLORD_DEMO_LISTINGS]);
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const response = await fetch("/api/listings/mine");
+        if (response.ok) {
+          const json = (await response.json()) as {
+            data: Array<{
+              id: string;
+              title: string;
+              propertyType: PropertyType;
+              price: number;
+              pricePeriod: PricePeriod;
+              city: string;
+              area: string | null;
+              photos: { url: string }[];
+              status: LandlordListingStatus;
+              rejectionReason: string | null;
+              viewCount: number;
+              contactClicks: number;
+              updatedAt: string;
+            }>;
+          };
+          if (!cancelled) {
+            setListings(
+              json.data.map((listing) => ({
+                id: listing.id,
+                title: listing.title,
+                propertyType: listing.propertyType,
+                price: listing.price,
+                pricePeriod: listing.pricePeriod,
+                city: listing.city,
+                area: listing.area || "—",
+                photo: listing.photos[0]?.url || PLACEHOLDER_PHOTO,
+                status:
+                  listing.status === "live" ||
+                  listing.status === "pending_review" ||
+                  listing.status === "rejected"
+                    ? listing.status
+                    : "draft",
+                rejectionReason: listing.rejectionReason ?? undefined,
+                viewCount: listing.viewCount,
+                contactClicks: listing.contactClicks,
+                updatedAt: listing.updatedAt.slice(0, 10),
+              })),
+            );
+            setLoading(false);
+            return;
+          }
+        }
+      } catch {
+        // fall through to demo
+      }
+
+      if (!cancelled) {
+        setListings([...draftsAsRows(), ...LANDLORD_DEMO_LISTINGS]);
+        setLoading(false);
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  if (loading) {
+    return <div className="h-64 animate-pulse rounded-xl border border-line bg-white" />;
+  }
 
   return (
     <div className="space-y-7">

@@ -343,11 +343,6 @@ function LoginPanel() {
           >
             Forgot password?
           </Link>
-          <p className="text-xs text-navy-400">
-            Demo tenant: tenant@houseme.ng / Tenant1!House
-            <br />
-            Demo landlord: landlord@houseme.ng / Landlord1!House
-          </p>
         </div>
       </form>
     </motion.div>
@@ -401,6 +396,11 @@ function RegisterPanel() {
             "Registration failed.",
         );
         setLoading(false);
+        return;
+      }
+
+      if (body?.data?.requiresVerification) {
+        window.location.assign("/auth/login?verify=1");
         return;
       }
 

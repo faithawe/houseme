@@ -43,16 +43,43 @@ export function AdminListingReview({ id }: { id: string }) {
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const response = await fetch(`/api/admin/listings`);
+        if (response.ok) {
+          const json = (await response.json()) as { data: AdminReviewListing[] };
+          const row = json.data.find((item) => item.id === id) ?? null;
+          if (!cancelled) {
+            setListing(row);
+            setReason(row?.rejectionReason ?? "");
+            setReady(true);
+            return;
+          }
+        }
+      } catch {
+        // fall through
+      }
+      if (!cancelled) {
+        const row = getAdminReviewListingById(id);
+        setListing(row);
+        setReason(row?.rejectionReason ?? "");
+        setReady(true);
+      }
+    }
+
+    void load();
     const sync = () => {
       const row = getAdminReviewListingById(id);
       setListing(row);
       setReason(row?.rejectionReason ?? "");
       setReady(true);
     };
-    sync();
     window.addEventListener(ADMIN_REVIEW_EVENT, sync);
     window.addEventListener("storage", sync);
     return () => {
+      cancelled = true;
       window.removeEventListener(ADMIN_REVIEW_EVENT, sync);
       window.removeEventListener("storage", sync);
     };
@@ -77,23 +104,61 @@ export function AdminListingReview({ id }: { id: string }) {
     );
   }
 
-  function approve() {
+  async function approve() {
+    try {
+      const response = await fetch(`/api/admin/listings/${listing!.id}/approve`, {
+        method: "PATCH",
+      });
+      if (response.ok) {
+        setMessage("Listing approved — now live for tenants.");
+        setTimeout(() => router.push("/dashboard/admin/listings?filter=live"), 800);
+        return;
+      }
+    } catch {
+      // local fallback
+    }
     setListingReview(listing!.id, "live");
     setMessage("Listing approved — marked live on this device.");
     setTimeout(() => router.push("/dashboard/admin/listings?filter=live"), 800);
   }
 
-  function reject() {
+  async function reject() {
     if (!reason.trim()) {
       setMessage("Add a rejection reason so the landlord knows what to fix.");
       return;
+    }
+    try {
+      const response = await fetch(`/api/admin/listings/${listing!.id}/reject`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: reason.trim() }),
+      });
+      if (response.ok) {
+        setMessage("Listing rejected with reason saved.");
+        setTimeout(() => router.push("/dashboard/admin/listings?filter=rejected"), 800);
+        return;
+      }
+    } catch {
+      // local fallback
     }
     setListingReview(listing!.id, "rejected", reason.trim());
     setMessage("Listing rejected with reason saved.");
     setTimeout(() => router.push("/dashboard/admin/listings?filter=rejected"), 800);
   }
 
-  function reopen() {
+  async function reopen() {
+    try {
+      const response = await fetch(`/api/admin/listings/${listing!.id}/flag`, {
+        method: "PATCH",
+      });
+      if (response.ok) {
+        setMessage("Listing moved back to review.");
+        setListing({ ...listing!, status: "pending_review", rejectionReason: undefined });
+        return;
+      }
+    } catch {
+      // local fallback
+    }
     setListingReview(listing!.id, "pending_review");
     setMessage("Listing moved back to review.");
     setListing({ ...listing!, status: "pending_review", rejectionReason: undefined });

@@ -43,9 +43,8 @@ export function TenantOverview({
         >
           <p className="font-semibold">Landlord desk needs a landlord account</p>
           <p className="mt-1 text-navy-600">
-            You&apos;re on a tenant session. Sign out, then use{" "}
-            <span className="font-medium text-ink">landlord@houseme.ng</span> /{" "}
-            <span className="font-medium text-ink">Landlord1!House</span>.
+            You&apos;re on a tenant session. Sign out, then log in with a landlord
+            account (or register as a landlord).
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Button

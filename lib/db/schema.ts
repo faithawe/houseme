@@ -56,6 +56,7 @@ export const users = pgTable("users", {
   name: varchar("name", { length: 100 }).notNull(),
   phone: varchar("phone", { length: 20 }).notNull(),
   role: userRoleEnum("role").notNull(),
+  avatarUrl: text("avatar_url"),
   emailVerified: boolean("email_verified").default(false).notNull(),
   failedLoginAttempts: smallint("failed_login_attempts").default(0).notNull(),
   lockedUntil: timestamp("locked_until", { withTimezone: true }),

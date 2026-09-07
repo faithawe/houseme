@@ -24,6 +24,7 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/auth/callback";
   const registered = searchParams.get("registered") === "1";
+  const needsVerify = searchParams.get("verify") === "1";
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -70,6 +71,11 @@ export function LoginForm() {
           Account created. You can log in now.
         </p>
       ) : null}
+      {needsVerify ? (
+        <p className="rounded-xl border border-palm/30 bg-palm-100 px-3 py-2 text-sm text-ink">
+          Check your inbox for a verification link, then log in.
+        </p>
+      ) : null}
       {error ? (
         <p
           role="alert"
@@ -97,11 +103,6 @@ export function LoginForm() {
       <Button type="submit" className="w-full" variant="stamp" disabled={loading}>
         {loading ? "Signing in…" : "Log in"}
       </Button>
-      <p className="text-xs text-navy-400">
-        Demo tenant: tenant@houseme.ng / Tenant1!House
-        <br />
-        Demo landlord: landlord@houseme.ng / Landlord1!House
-      </p>
     </form>
   );
 }
