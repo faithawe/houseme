@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { HouseMeLogo } from "@/components/brand/houseme-logo";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { NewsletterForm } from "@/components/layout/newsletter-form";
 
 export function Footer() {
   return (
@@ -11,22 +10,10 @@ export function Footer() {
           <div>
             <p className="font-display text-xl font-semibold">Stay updated</p>
             <p className="mt-1 text-sm text-white/65">
-              New verified rooms in your city — email alerts come later.
+              Get a note when new verified rooms land — no spam.
             </p>
           </div>
-          <div className="flex w-full max-w-md flex-col gap-2 sm:flex-row">
-            <Input
-              type="email"
-              name="email"
-              placeholder="Email address"
-              className="border-white/20 bg-white text-ink placeholder:text-navy-400"
-              aria-label="Email address"
-              disabled
-            />
-            <Button type="button" variant="stamp" className="shrink-0" disabled>
-              Subscribe
-            </Button>
-          </div>
+          <NewsletterForm />
         </div>
       </div>
 

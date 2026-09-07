@@ -102,3 +102,7 @@ export const profileUpdateSchema = z.object({
 export const rejectListingSchema = z.object({
   reason: z.string().min(10).max(1000),
 });
+
+export const newsletterSubscribeSchema = z.object({
+  email: z.string().email("Enter a valid email address"),
+});

@@ -118,4 +118,18 @@ export const emailService = {
       ),
     });
   },
+
+  async sendNewsletterConfirmation(to: string): Promise<void> {
+    const searchUrl = `${process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "https://houseme.vercel.app"}/search`;
+    await sendEmail({
+      to,
+      subject: "You're on the HouseMe list",
+      text: `You're subscribed to HouseMe updates. Browse verified rooms: ${searchUrl}`,
+      html: layout(
+        "You're subscribed",
+        `<p>Thanks for joining HouseMe updates. We'll email you when new verified rooms land in your city.</p>
+         <p><a href="${searchUrl}" style="display:inline-block;padding:10px 16px;background:#A6904A;color:#fff;text-decoration:none;border-radius:999px">Browse listings</a></p>`,
+      ),
+    });
+  },
 };

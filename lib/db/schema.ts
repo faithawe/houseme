@@ -219,9 +219,16 @@ export const contactEvents = pgTable(
   (table) => [index("idx_contact_listing").on(table.listingId)],
 );
 
+export const newsletterSubscribers = pgTable("newsletter_subscribers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Listing = typeof listings.$inferSelect;
 export type NewListing = typeof listings.$inferInsert;
 export type ListingPhoto = typeof listingPhotos.$inferSelect;
 export type Favorite = typeof favorites.$inferSelect;
+export type NewsletterSubscriber = typeof newsletterSubscribers.$inferSelect;
