@@ -93,8 +93,13 @@ export function AnimatedGlanceStats({
   variant?: "overlay" | "panel";
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  // Lower threshold so the compact overlay strip retriggers reliably
-  const isInView = useInView(ref, { amount: 0.2, margin: "0px 0px -8% 0px", once: false });
+  // Expand the detection box so the bottom overlay strip triggers while scrolling
+  const isInView = useInView(ref, {
+    amount: 0.1,
+    // Grow the viewport box so the bottom overlay strip triggers while scrolling
+    margin: "80px 0px 80px 0px",
+    once: false,
+  });
   const reduceMotion = useReducedMotion();
 
   return (
@@ -117,16 +122,16 @@ export function AnimatedGlanceStats({
               ? { opacity: 1, y: 0 }
               : isInView
                 ? { opacity: 1, y: 0 }
-                : { opacity: 0.35, y: 10 }
+                : { opacity: 0.25, y: 18 }
           }
           transition={{
-            duration: 1,
+            duration: 1.05,
             ease: [0.22, 1, 0.36, 1],
-            delay: isInView && !reduceMotion ? index * 0.09 : 0,
+            delay: isInView && !reduceMotion ? index * 0.1 : 0,
           }}
         >
-          <p className="font-display text-xl font-semibold tracking-tight text-ink sm:text-2xl">
-            <CountUpValue value={stat.value} active={isInView} durationMs={1050} />
+          <p className="font-display text-xl font-semibold tabular-nums tracking-tight text-ink sm:text-2xl">
+            <CountUpValue value={stat.value} active={isInView} durationMs={1100} />
           </p>
           <p className="mt-1 text-[11px] leading-snug text-navy-600 sm:text-xs">
             {stat.label}
