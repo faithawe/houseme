@@ -45,3 +45,11 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+# env (keep .env.example tracked)
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local

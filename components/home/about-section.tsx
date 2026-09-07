@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { AnimatedGlanceStats } from "@/components/home/animated-glance-stats";
 
 const photos = [
   {
@@ -18,13 +19,6 @@ const photos = [
     alt: "Compact kitchen in a self-contained unit",
     className: "min-h-[9rem]",
   },
-];
-
-const stats = [
-  { value: "8+", label: "Cities covered" },
-  { value: "100%", label: "Listings reviewed" },
-  { value: "0%", label: "Agent fees on HouseMe" },
-  { value: "Direct", label: "Phone & WhatsApp" },
 ];
 
 export function AboutSection() {
@@ -66,21 +60,7 @@ export function AboutSection() {
             ))}
           </div>
 
-          <div
-            aria-label="HouseMe at a glance"
-            className="absolute inset-x-0 bottom-0 z-10 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-line shadow-slip sm:grid-cols-4"
-          >
-            {stats.map((stat) => (
-              <div key={stat.label} className="bg-white px-3 py-3.5 sm:px-3 sm:py-4">
-                <p className="font-display text-xl font-semibold tracking-tight text-ink sm:text-2xl">
-                  {stat.value}
-                </p>
-                <p className="mt-1 text-[11px] leading-snug text-navy-600 sm:text-xs">
-                  {stat.label}
-                </p>
-              </div>
-            ))}
-          </div>
+          <AnimatedGlanceStats variant="overlay" />
         </div>
       </div>
     </section>
